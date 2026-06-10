@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "vendor_name": "Test HVAC Corp",
+    "invoice_date": "2026-06-10",
+    "invoice_id": "INV-MOCK-123",
+    "total_amount": 2500.0,
+    "currency": "USD"
+  },
+  "labor_items": [
+    {
+      "technician_identifier": "Master Tech Alice",
+      "task_description": "Filter swap and basic inspection",
+      "billing_rate_hourly": 150.0,
+      "hours_billed": 2.0,
+      "line_total": 300.0
+    }
+  ],
+  "parts_and_materials": [],
+  "vague_charges": [
+    {
+      "charge_type": "MISC",
+      "description": "Miscellaneous Lot fee",
+      "amount": 750.0
+    }
+  ]
+}
