@@ -4,6 +4,7 @@ import logging
 from kraken_audit.extraction.engine import run_extraction
 from kraken_audit.judge.compliance_engine import ComplianceEngine
 from kraken_audit.delivery.report_generator import ReportGenerator
+from kraken_audit.delivery.reporter import report_on_invoice, batch_summary
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -15,7 +16,7 @@ class Pipeline:
         self.compliance_engine = ComplianceEngine(db_path=db_path)
         self.report_gen = ReportGenerator()
 
-    def process_invoice(self, file_path):
+    def process_invoice(self, file_path, show_dashboard=True):
         logger.info(f"Starting pipeline for: {file_path}")
         
         try:
@@ -41,14 +42,24 @@ class Pipeline:
             invoice_db_id = self.report_gen.persist_invoice(final_payload)
             logger.info(f"Persisted to database with ID: {invoice_db_id}")
             
-            # Generate Report
+            # Generate Markdown Report
             report_md = self.report_gen.generate_markdown_report(final_payload)
             invoice_number = final_payload["invoice_metadata"].get("invoice_number", "unknown")
             report_path = f"/home/team/shared/invoices/processed/report_{invoice_number}.md"
             with open(report_path, "w") as f:
                 f.write(report_md)
             
-            logger.info(f"Report generated: {report_path}")
+            logger.info(f"Markdown report: {report_path}")
+
+            # 4. Reporter: PDF + Console Dashboard
+            # Generate PDF audit report if flags exist
+            pdf_path = report_on_invoice(final_payload["invoice_metadata"], final_payload["compliance_results"])
+            logger.info(f"PDF audit report: {pdf_path}" if pdf_path else "No flags — no PDF report needed")
+
+            # Print console dashboard after each invoice
+            if show_dashboard:
+                batch_summary()
+
             return report_path
 
         except Exception as e:
