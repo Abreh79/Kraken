@@ -10,7 +10,7 @@ class GeminiExtractor:
             raise ValueError("GOOGLE_API_KEY must be provided or set as environment variable")
         
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash') # Using 2.0 Flash as it's the latest/recommended for speed
+        self.model = genai.GenerativeModel('gemini-2.5-flash') # Using 2.5 Flash
 
     def extract(self, file_path: str) -> InvoiceData:
         # Upload file to Gemini if needed or pass directly as bytes
