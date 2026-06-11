@@ -113,8 +113,14 @@
   </footer>
 
   <script>
-    // ─── API BASE ───
-    const API = '';
+    // ─── API BASE — configured via env or defaults to same-origin ───
+    const API = window.API_BASE || '';
+
+    // Override from query param ?api=http://host:8080 for Vercel dev
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('api')) {
+      window.API_BASE = urlParams.get('api');
+    }
 
     // ─── DASHBOARD DATA ───
     async function loadDashboard() {

@@ -1,0 +1,28 @@
+{
+  "name": "kraken-audit",
+  "version": 2,
+  "public": true,
+  "builds": [
+    {
+      "src": "static/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/static/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/static/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ],
+  "env": {
+    "KRAKEN_API_URL": "http://localhost:8080"
+  }
+}

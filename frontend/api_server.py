@@ -11,11 +11,22 @@ import uuid
 from pathlib import Path
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI(title="Kraken Audit API", version="1.0.0")
+
+# ─── CORS: allow Vercel / any frontend origin ───
+BACKEND_HOST = os.environ.get("KRAKEN_HOST", "http://localhost:8080")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Wide open for demo — restrict in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -58,6 +69,17 @@ def _get_available_reports():
 # ─────────────────────────────────────────────
 #  API ENDPOINTS
 # ─────────────────────────────────────────────
+
+@app.get("/api/health")
+def health_check():
+    """Health endpoint for Vercel / uptime monitoring."""
+    return {
+        "status": "ok",
+        "service": "Kraken Audit API",
+        "version": "1.0.0",
+        "timestamp": datetime.now().isoformat(),
+    }
+
 
 @app.get("/api/dashboard")
 def get_dashboard():
