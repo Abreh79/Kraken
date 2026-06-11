@@ -12,13 +12,15 @@ class GeminiExtractor:
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel('gemini-2.5-flash') # Using 2.5 Flash
 
-    def extract(self, file_path: str) -> InvoiceData:
-        # Upload file to Gemini if needed or pass directly as bytes
-        # For simplicity and multi-modal support, we'll pass the image bytes
-        
-        with open(file_path, "rb") as f:
-            image_data = f.read()
+    def extract(self, file_paths) -> InvoiceData:
+        """
+        Extract invoice data from one or more image paths (multi-page support).
+        Accepts a single path string or a list of paths.
+        """
+        if isinstance(file_paths, str):
+            file_paths = [file_paths]
 
+        # Build Gemini content parts: prompt + all page images
         prompt = """
         Extract all information from this HVAC invoice and return it in a strict JSON format matching this schema:
         {
@@ -36,15 +38,25 @@ class GeminiExtractor:
         
         Rules:
         - If a field is missing, use null.
+        - Capture ALL technicians, labor items, parts, and charges listed across all pages.
         - Labor items should specifically capture technician names and their rates.
         - Vague charges are things like 'Service Fee', 'Truck Charge', 'Environmental Fee' without clear hourly or unit breakdown.
         - Ensure numerical values are floats.
+        - Combine data from all pages into a single complete JSON output.
         """
 
-        response = self.model.generate_content([
-            prompt,
-            {"mime_type": "image/png", "data": image_data}
-        ], generation_config={"response_mime_type": "application/json"})
+        content_parts = [prompt]
+        for fp in file_paths:
+            with open(fp, "rb") as f:
+                img_data = f.read()
+            ext = os.path.splitext(fp)[1].lower()
+            mime = "image/png" if ext == ".png" else "image/jpeg"
+            content_parts.append({"mime_type": mime, "data": img_data})
+
+        response = self.model.generate_content(
+            content_parts,
+            generation_config={"response_mime_type": "application/json"}
+        )
 
         try:
             data = json.loads(response.text)

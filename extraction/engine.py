@@ -4,51 +4,55 @@ from .utils.preprocess import preprocess_image
 from .extractor import GeminiExtractor
 from .models import InvoiceData
 
-def _convert_pdf_to_png(pdf_path: str) -> str:
-    """Convert first page of PDF to PNG for Gemini processing using PyMuPDF."""
+def _convert_pdf_to_pngs(pdf_path: str) -> list:
+    """Convert ALL pages of PDF to PNG images for Gemini processing using PyMuPDF."""
     import fitz
     doc = fitz.open(pdf_path)
     if doc.page_count == 0:
         raise ValueError(f"PDF has no pages: {pdf_path}")
-    page = doc.load_page(0)
-    pix = page.get_pixmap(dpi=200)
-    tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-    pix.save(tmp.name)
+    paths = []
+    for i in range(doc.page_count):
+        page = doc.load_page(i)
+        pix = page.get_pixmap(dpi=200)
+        tmp = tempfile.NamedTemporaryFile(suffix=f'_page{i+1}.png', delete=False)
+        pix.save(tmp.name)
+        paths.append(tmp.name)
     doc.close()
-    return tmp.name
+    return paths
 
 def run_extraction(file_path: str, api_key: str = None) -> InvoiceData:
     """
     Main entry point for extraction.
-    Handles preprocessing and calling the LLM.
+    Handles multi-page PDFs, preprocessing, and calling the LLM.
     """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
 
     ext = os.path.splitext(file_path)[1].lower()
-    needs_cleanup = False
+    image_paths = []
     
-    # Convert PDF to image first
+    # Convert PDF pages → images
     if ext == '.pdf':
-        file_path = _convert_pdf_to_png(file_path)
-        needs_cleanup = True
-        ext = '.png'
+        image_paths = _convert_pdf_to_pngs(file_path)
+    elif ext in ['.jpg', '.jpeg', '.png']:
+        image_paths = [file_path]
     
-    # Preprocess image for better OCR
-    if ext in ['.jpg', '.jpeg', '.png']:
-        processed_path = preprocess_image(file_path)
-        if needs_cleanup:
-            os.remove(file_path)  # remove the raw conversion
-        needs_cleanup = True
-        file_path = processed_path
+    # Preprocess each image
+    processed_paths = []
+    for p in image_paths:
+        processed = preprocess_image(p)
+        if p != file_path:
+            os.remove(p)  # remove raw conversion
+        processed_paths.append(processed)
     
-    # Extract
+    # Extract — pass all page images to Gemini
     extractor = GeminiExtractor(api_key=api_key)
-    invoice_data = extractor.extract(file_path)
+    invoice_data = extractor.extract(processed_paths)
     
     # Clean up temp files
-    if needs_cleanup and os.path.exists(file_path):
-        os.remove(file_path)
+    for p in processed_paths:
+        if os.path.exists(p):
+            os.remove(p)
         
     return invoice_data
 
